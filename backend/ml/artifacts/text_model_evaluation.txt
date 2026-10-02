@@ -1,0 +1,36 @@
+==================================================
+TRUTH GUARD NLP MODEL EVALUATION REPORT
+==================================================
+Model Architecture : TF-IDF + Logistic Regression
+Target Modality    : Text (Headline + Article Body)
+Evaluation Set     : Held-out Test Set (15% of dataset)
+Test Sample Count  : 946 articles
+Random Seed        : 42
+
+PERFORMANCE METRICS:
+--------------------------------------------------
+Accuracy  : 0.9313 (93.13%)
+Precision : 0.9096 (90.96%)
+Recall    : 0.9577 (95.77%)
+F1-Score  : 0.9331 (93.31%)
+ROC-AUC   : 0.9830 (98.30%)
+
+CONFUSION MATRIX:
+--------------------------------------------------
+True Negatives (Actual REAL, Predicted REAL): 428
+False Positives (Actual REAL, Predicted FAKE): 45
+False Negatives (Actual FAKE, Predicted REAL): 20
+True Positives (Actual FAKE, Predicted FAKE): 453
+
+DETAILED CLASSIFICATION REPORT:
+--------------------------------------------------
+              precision    recall  f1-score   support
+
+    REAL (0)       0.96      0.90      0.93       473
+    FAKE (1)       0.91      0.96      0.93       473
+
+    accuracy                           0.93       946
+   macro avg       0.93      0.93      0.93       946
+weighted avg       0.93      0.93      0.93       946
+
+==================================================

@@ -1,0 +1,15 @@
+{
+  "model_type": "Logistic Regression (Trainable Multimodal Fusion)",
+  "features": [
+    "p_fake_text",
+    "image_text_similarity",
+    "alignment_signal"
+  ],
+  "random_seed": 42,
+  "train_samples": 8,
+  "val_samples": 2,
+  "test_samples": 2,
+  "training_time_seconds": 0.0034,
+  "is_production_ready": false,
+  "version": "1.0"
+}
