@@ -90,5 +90,27 @@ def test_04_history_endpoint_persistence():
     assert "prediction" in first_item
 
 
+def test_05_lightweight_health_check_no_clip_loading():
+    import time
+    try:
+        from ml.vision_language import VisionLanguageRegistry
+    except ImportError:
+        from backend.ml.vision_language import VisionLanguageRegistry
+    
+    # Create fresh registry without calling load_artifacts()
+    fresh_vl = VisionLanguageRegistry()
+    assert fresh_vl.is_loaded is False
+    
+    # Verify get_status() completes instantly without loading model weights
+    t0 = time.time()
+    status_dict = fresh_vl.get_status()
+    elapsed_ms = (time.time() - t0) * 1000.0
+    
+    assert status_dict["status"] == "not_ready"
+    assert status_dict["artifact_availability"] is False
+    assert fresh_vl.is_loaded is False
+    assert elapsed_ms < 100.0  # Must complete instantly (< 100ms)
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

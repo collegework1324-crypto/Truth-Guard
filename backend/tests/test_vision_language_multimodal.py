@@ -69,6 +69,9 @@ def sample_images():
 
 def test_01_clip_registry_readiness():
     registry = get_vision_language_registry()
+    # Explicitly load CLIP artifacts for automated vision test suite
+    loaded = registry.load_artifacts()
+    assert loaded == True
     assert registry.is_ready() == True
     status = registry.get_status()
     assert status["status"] == "ready"

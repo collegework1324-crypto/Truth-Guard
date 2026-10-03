@@ -60,13 +60,16 @@ class VisionLanguageRegistry:
             return False
 
     def is_ready(self) -> bool:
-        if not self.is_loaded:
-            return self.load_artifacts()
+        """
+        Non-blocking readiness check.
+        Returns True ONLY if CLIP model and processor are already loaded into memory.
+        Does NOT trigger heavy artifact loading or network downloads.
+        """
         return self.is_loaded and self.model is not None and self.processor is not None
 
     def get_status(self) -> Dict[str, Any]:
         """
-        Returns readiness status for health check endpoint.
+        Returns readiness status for health check endpoint without triggering model loading.
         """
         return {
             "status": "ready" if self.is_ready() else "not_ready",
@@ -80,9 +83,13 @@ class VisionLanguageRegistry:
         """
         Calculates exact L2-normalized Cosine Similarity between image & claim text embeddings.
         Returns visual signal dictionary.
+        Loads CLIP model lazily on first access if not already loaded.
         """
         start_time = time.time()
         
+        if not self.is_ready():
+            self.load_artifacts()
+
         if not self.is_ready():
             return {
                 "available": False,
