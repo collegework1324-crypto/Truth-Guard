@@ -9,7 +9,7 @@
   "train_samples": 8,
   "val_samples": 2,
   "test_samples": 2,
-  "training_time_seconds": 0.0034,
+  "training_time_seconds": 0.0066,
   "is_production_ready": false,
   "version": "1.0"
 }
