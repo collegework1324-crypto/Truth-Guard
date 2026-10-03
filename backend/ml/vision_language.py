@@ -7,11 +7,9 @@ image-text embedding cosine similarity and visual semantic evidence signals.
 import os
 import time
 import logging
-import torch
 import numpy as np
 from PIL import Image
 from typing import Dict, Any, Tuple, Optional
-from transformers import CLIPProcessor, CLIPModel
 
 logger = logging.getLogger("truth_guard.ml.vision_language")
 
@@ -37,7 +35,7 @@ class VisionLanguageRegistry:
 
     def load_artifacts(self) -> bool:
         """
-        Loads pretrained CLIP model and processor.
+        Loads pretrained CLIP model and processor lazily.
         """
         if self.is_loaded and self.model is not None:
             return True
@@ -45,6 +43,7 @@ class VisionLanguageRegistry:
         start_time = time.time()
         try:
             logger.info(f"[VisionLanguage] Loading pretrained CLIP model: {MODEL_ID}...")
+            from transformers import CLIPProcessor, CLIPModel
             self.processor = CLIPProcessor.from_pretrained(MODEL_ID)
             self.model = CLIPModel.from_pretrained(MODEL_ID)
             self.model.eval()  # Set evaluation mode
@@ -122,6 +121,7 @@ class VisionLanguageRegistry:
                 )
 
                 # 3. Extract normalized vision and text embeddings
+                import torch
                 with torch.no_grad():
                     img_out = self.model.get_image_features(pixel_values=inputs["pixel_values"])
                     txt_out = self.model.get_text_features(input_ids=inputs["input_ids"], attention_mask=inputs.get("attention_mask"))
