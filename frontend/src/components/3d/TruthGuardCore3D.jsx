@@ -123,8 +123,9 @@ export const TruthGuardCore3D = ({ height = '520px', interactive = true }) => {
     // 5. Orbiting Modality Nodes
     const nodeDefs = [
       { id: 'text', label: 'NLP TEXT NODE', color: 0x00f2fe, angle: 0, distance: 4.8, description: 'Supervised TF-IDF & Logistic Regression NLP classifier' },
-      { id: 'image', label: 'VISION NODE', color: 0x4facfe, angle: (Math.PI * 2) / 3, distance: 4.8, description: 'CLIP ViT-B/32 image-text cosine similarity' },
-      { id: 'fusion', label: 'FUSION GATE', color: 0xa855f7, angle: (Math.PI * 4) / 3, distance: 4.8, description: 'Reliability-Gated sigmoid modality fusion engine' }
+      { id: 'image', label: 'VISION NODE', color: 0x4facfe, angle: Math.PI / 2, distance: 4.8, description: 'CLIP ViT-B/32 image-text cosine similarity' },
+      { id: 'fusion', label: 'FUSION GATE', color: 0xa855f7, angle: Math.PI, distance: 4.8, description: 'Reliability-Gated sigmoid modality fusion engine' },
+      { id: 'evidence', label: 'EVIDENCE NODE', color: 0x10b981, angle: (Math.PI * 3) / 2, distance: 4.8, description: 'Explainable verdict synthesis & evidence logging' }
     ];
 
     const nodeMeshes = [];
@@ -364,6 +365,10 @@ export const TruthGuardCore3D = ({ height = '520px', interactive = true }) => {
         <div className="badge-info" style={{ backdropFilter: 'blur(10px)', fontSize: '0.76rem', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', display: 'inline-block', marginRight: '6px' }} />
           GATED FUSION (Sigmoid α)
+        </div>
+        <div className="badge-info" style={{ backdropFilter: 'blur(10px)', fontSize: '0.76rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', marginRight: '6px' }} />
+          EVIDENCE (Explainable)
         </div>
       </div>
     </div>
