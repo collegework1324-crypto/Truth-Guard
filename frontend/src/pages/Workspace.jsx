@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { 
   Send, Upload, Image as ImageIcon, Video, FileText, CheckCircle2, 
   XCircle, AlertCircle, Cpu, RefreshCw, ThumbsUp, ThumbsDown, HelpCircle, 
-  ChevronDown, ChevronUp, Info, ShieldCheck, Layers, Sparkles, X
+  ChevronDown, ChevronUp, Info, ShieldCheck, Layers, Sparkles, X, Activity
 } from 'lucide-react';
 import { analyzeMultimodal, submitFeedback } from '../api/client';
+import { TruthGuardCore3D } from '../components/3d/TruthGuardCore3D';
 
 export const Workspace = () => {
   const [headline, setHeadline] = useState('');
@@ -14,6 +15,7 @@ export const Workspace = () => {
   const [videoFile, setVideoFile] = useState(null);
 
   const [loading, setLoading] = useState(false);
+  const [processingStage, setProcessingStage] = useState('Preparing input');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
 
@@ -23,7 +25,6 @@ export const Workspace = () => {
   // Feedback state
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackComments, setFeedbackComments] = useState('');
-  const [selectedRating, setSelectedRating] = useState(null);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -70,8 +71,8 @@ export const Workspace = () => {
     setError(null);
     setResult(null);
     setFeedbackSent(false);
-    setSelectedRating(null);
     setFeedbackComments('');
+    setProcessingStage('Preparing input and parsing text claims...');
 
     try {
       const formData = new FormData();
@@ -80,8 +81,15 @@ export const Workspace = () => {
       if (imageFile) formData.append('image', imageFile);
       if (videoFile) formData.append('video', videoFile);
 
+      setProcessingStage('Extracting TF-IDF text features & CLIP image embeddings...');
       const responseData = await analyzeMultimodal(formData);
-      setResult(responseData);
+
+      setProcessingStage('Applying dynamic reliability gate & synthesizing verdict...');
+      setTimeout(() => {
+        setResult(responseData);
+        setLoading(false);
+      }, 400);
+
     } catch (err) {
       const detailMsg = err.response?.data?.detail;
       if (typeof detailMsg === 'string') {
@@ -89,9 +97,8 @@ export const Workspace = () => {
       } else if (Array.isArray(detailMsg)) {
         setError(detailMsg.map(d => d.msg).join(', '));
       } else {
-        setError('Analysis request failed. Please check your backend connection.');
+        setError('Analysis request failed. Please verify your backend server connection.');
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -105,20 +112,18 @@ export const Workspace = () => {
         user_label: userLabel,
         comments: feedbackComments || null
       });
-      setSelectedRating(rating);
       setFeedbackSent(true);
     } catch (err) {
       console.error("Failed to submit feedback:", err);
     }
   };
 
-  // Helper to map fusion_method to human readable title
   const getFusionMethodLabel = (methodKey) => {
     switch (methodKey) {
       case 'reliability_gated_baseline':
         return 'Reliability-Gated Multimodal Fusion';
       case 'text_only_baseline':
-        return 'Text-Only ML Pipeline';
+        return 'Text-Only Supervised ML Pipeline';
       case 'trainable_logistic_regression':
         return 'Trainable Multimodal Fusion';
       default:
@@ -127,35 +132,36 @@ export const Workspace = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '30px 20px' }}>
+    <div style={{ maxWidth: '1400px', margin: '40px auto', padding: '0 24px' }}>
       
       {/* HEADER SECTION */}
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '2.1rem', fontWeight: 800, marginBottom: '8px' }}>
-          Multimodal <span className="gradient-text">Fake News Detection</span>
+      <div style={{ marginBottom: '36px', textAlign: 'center' }}>
+        <div className="badge-info font-mono" style={{ display: 'inline-block', marginBottom: '12px' }}>
+          3D DETECTION WORKSPACE
+        </div>
+        <h1 style={{ fontSize: '3rem', fontWeight: 800 }} className="heading-serif">
+          TRUTH GUARD <span className="gradient-text">DETECTION WORKSPACE</span>
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.98rem' }}>
-          Analyze textual content and optional media using NLP and vision-language analysis.
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.08rem', maxWidth: '680px', margin: '10px auto 0 auto' }}>
+          Analyze news claims using supervised NLP text classification and OpenAI CLIP vision-language semantic alignment.
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '32px' }}>
         
         {/* INPUT FORM PANEL */}
-        <div className="glass-panel" style={{ padding: '30px', alignSelf: 'start' }}>
-          <h2 style={{ fontSize: '1.15rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FileText size={20} color="#00f2fe" /> Content Modality Inputs
+        <div className="glass-panel" style={{ padding: '36px', alignSelf: 'start' }}>
+          <h2 style={{ fontSize: '1.35rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }} className="heading-serif">
+            <FileText size={22} color="#00f2fe" /> Modality Input Specification
           </h2>
 
           <form onSubmit={handleAnalyze}>
             <div className="form-group">
-              <label className="form-label">
-                <span>News Headline *</span>
-              </label>
+              <label className="form-label">News Headline / Claim Title *</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Paste news headline or claim title..."
+                placeholder="Paste news headline or textual claim..."
                 value={headline}
                 onChange={(e) => setHeadline(e.target.value)}
                 required
@@ -166,7 +172,7 @@ export const Workspace = () => {
               <label className="form-label">Article Description / Body (Optional)</label>
               <textarea
                 className="form-textarea"
-                placeholder="Paste full news body text or article content for context..."
+                placeholder="Paste supporting article text or full news context..."
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
               />
@@ -177,23 +183,23 @@ export const Workspace = () => {
               
               {/* Image Upload Box */}
               <div style={{
-                border: imageFile ? '1px solid var(--accent-cyan)' : '1px dashed var(--border-color)',
+                border: imageFile ? '1px solid var(--accent-cyan)' : '1px dashed var(--border-cyan)',
                 borderRadius: 'var(--radius-md)',
-                padding: '14px',
+                padding: '16px',
                 textAlign: 'center',
-                background: imageFile ? 'rgba(0, 242, 254, 0.05)' : 'rgba(15, 23, 42, 0.4)',
+                background: imageFile ? 'rgba(0, 242, 254, 0.06)' : 'rgba(12, 19, 36, 0.5)',
                 position: 'relative'
               }}>
                 {!imagePreview ? (
                   <label style={{ cursor: 'pointer', display: 'block' }}>
-                    <ImageIcon size={26} color="#4facfe" style={{ margin: '0 auto 6px auto' }} />
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Image Modality</div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>JPG, PNG, WebP</div>
+                    <ImageIcon size={28} color="#00f2fe" style={{ margin: '0 auto 8px auto' }} />
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>Image Modality</div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>JPG, PNG, WebP</div>
                     <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                   </label>
                 ) : (
                   <div>
-                    <div style={{ position: 'relative', width: '100%', height: '110px', marginBottom: '8px', overflow: 'hidden', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ position: 'relative', width: '100%', height: '120px', marginBottom: '8px', overflow: 'hidden', borderRadius: 'var(--radius-sm)' }}>
                       <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <button
                         type="button"
@@ -202,23 +208,22 @@ export const Workspace = () => {
                           position: 'absolute',
                           top: '6px',
                           right: '6px',
-                          background: 'rgba(0, 0, 0, 0.75)',
+                          background: 'rgba(0, 0, 0, 0.8)',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
+                          width: '26px',
+                          height: '26px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           cursor: 'pointer'
                         }}
-                        title="Remove image"
                       >
                         <X size={14} />
                       </button>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--accent-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="font-mono">
                       {imageFile.name}
                     </div>
                   </div>
@@ -227,34 +232,33 @@ export const Workspace = () => {
 
               {/* Video Upload Box */}
               <div style={{
-                border: videoFile ? '1px solid #a855f7' : '1px dashed var(--border-color)',
+                border: videoFile ? '1px solid #a855f7' : '1px dashed var(--border-cyan)',
                 borderRadius: 'var(--radius-md)',
-                padding: '14px',
+                padding: '16px',
                 textAlign: 'center',
-                background: videoFile ? 'rgba(168, 85, 247, 0.05)' : 'rgba(15, 23, 42, 0.4)',
+                background: videoFile ? 'rgba(168, 85, 247, 0.06)' : 'rgba(12, 19, 36, 0.5)',
                 position: 'relative'
               }}>
                 {!videoFile ? (
                   <label style={{ cursor: 'pointer', display: 'block' }}>
-                    <Video size={26} color="#a855f7" style={{ margin: '0 auto 6px auto' }} />
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Video Modality</div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>MP4, WebM</div>
+                    <Video size={28} color="#a855f7" style={{ margin: '0 auto 8px auto' }} />
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>Video Modality</div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>MP4, WebM</div>
                     <input type="file" accept="video/*" onChange={handleVideoChange} style={{ display: 'none' }} />
                   </label>
                 ) : (
                   <div>
-                    <div style={{ padding: '20px 8px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }}>
-                      <Video size={30} color="#c084fc" style={{ margin: '0 auto' }} />
+                    <div style={{ padding: '24px 8px', background: 'rgba(168, 85, 247, 0.12)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }}>
+                      <Video size={32} color="#c084fc" style={{ margin: '0 auto' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#c084fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '0.76rem', color: '#c084fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="font-mono">
                         {videoFile.name}
                       </span>
                       <button
                         type="button"
                         onClick={handleRemoveVideo}
                         style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                        title="Remove video"
                       >
                         <X size={14} />
                       </button>
@@ -287,97 +291,101 @@ export const Workspace = () => {
               {loading ? (
                 <>
                   <RefreshCw className="animate-spin" size={18} />
-                  <span>Analyzing Headline & CLIP Media Alignment...</span>
+                  <span>ANALYZE WITH TRUTH GUARD...</span>
                 </>
               ) : (
                 <>
                   <Send size={18} />
-                  <span>Analyze News Authenticity</span>
+                  <span>ANALYZE WITH TRUTH GUARD</span>
                 </>
               )}
             </button>
           </form>
         </div>
 
-        {/* RESULTS PANEL */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ fontSize: '1.15rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Cpu size={20} color="#a855f7" /> Detection Output & Evidence
+        {/* RESULTS / DETECTING OUTPUT PANEL */}
+        <div className="glass-panel" style={{ padding: '36px' }}>
+          <h2 style={{ fontSize: '1.35rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }} className="heading-serif">
+            <Cpu size={22} color="#a855f7" /> TRUTH GUARD RESULT
           </h2>
 
           {!result && !loading && (
             <div style={{
-              height: '360px',
+              height: '420px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-muted)',
               textAlign: 'center',
-              border: '1px dashed var(--border-color)',
+              border: '1px dashed var(--border-cyan)',
               borderRadius: 'var(--radius-md)',
-              padding: '20px'
+              padding: '24px'
             }}>
-              <Layers size={44} strokeWidth={1.5} style={{ marginBottom: '14px', opacity: 0.4 }} />
-              <p style={{ fontWeight: 600, fontSize: '1rem' }}>No Analysis Executed Yet</p>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', maxWidth: '320px', marginTop: '6px', lineHeight: 1.5 }}>
-                Submit a headline and optional media on the left to run Truth Guard's NLP and CLIP vision-language pipeline.
+              <Layers size={52} strokeWidth={1.2} style={{ marginBottom: '16px', opacity: 0.35, color: '#00f2fe' }} />
+              <p style={{ fontWeight: 700, fontSize: '1.1rem' }} className="heading-serif">No Analysis Executed Yet</p>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-dim)', maxWidth: '340px', marginTop: '8px', lineHeight: 1.6 }}>
+                Submit news claim headline and optional media on the left to invoke the NLP & CLIP multimodal detection pipeline.
               </p>
             </div>
           )}
 
           {loading && (
             <div style={{
-              height: '360px',
+              minHeight: '420px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '16px'
+              gap: '20px',
+              padding: '20px'
             }}>
-              <RefreshCw className="animate-spin" size={38} color="var(--accent-cyan)" />
+              <TruthGuardCore3D height="240px" interactive={false} />
+              
               <div style={{ textAlign: 'center' }}>
-                <p style={{ fontWeight: 600, fontSize: '1rem' }}>Analyzing Headline & Media</p>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }} className="font-mono">
-                  Supervised NLP Classification → CLIP Embedding Alignment → Fusion
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', color: 'var(--accent-cyan)', fontWeight: 700 }} className="font-mono">
+                  <Activity size={16} className="animate-spin" /> {processingStage}
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '8px' }} className="font-mono">
+                  Text Signal → TRUTH CORE ← Visual Signal
                 </p>
               </div>
             </div>
           )}
 
           {result && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               
-              {/* 1. MAIN RESULT CARD */}
+              {/* 1. MAIN RESULT SCORE CARD */}
               <div style={{
-                background: result.prediction === 'REAL' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                border: `1px solid ${result.prediction === 'REAL' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                background: result.prediction === 'REAL' ? 'rgba(16, 185, 129, 0.09)' : 'rgba(239, 68, 68, 0.09)',
+                border: `1px solid ${result.prediction === 'REAL' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
                 borderRadius: 'var(--radius-md)',
-                padding: '20px'
+                padding: '24px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Prediction Output
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }} className="font-mono">
+                      VERDICT OUTPUT
                     </div>
-                    <div className={result.prediction === 'REAL' ? 'badge-real' : 'badge-fake'} style={{ fontSize: '1.25rem', padding: '6px 18px', marginTop: '6px' }}>
-                      {result.prediction === 'REAL' ? <CheckCircle2 size={22} /> : <XCircle size={22} />}
+                    <div className={result.prediction === 'REAL' ? 'badge-real' : 'badge-fake'} style={{ fontSize: '1.4rem', padding: '8px 22px', marginTop: '6px' }}>
+                      {result.prediction === 'REAL' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
                       <span>{result.prediction}</span>
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Model Confidence
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }} className="font-mono">
+                      CONFIDENCE
                     </div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 800 }} className="font-mono">
+                    <div style={{ fontSize: '2rem', fontWeight: 800, color: result.prediction === 'REAL' ? '#10b981' : '#ef4444' }} className="font-mono">
                       {(result.confidence * 100).toFixed(1)}%
                     </div>
                   </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="progress-bar-bg" style={{ marginBottom: '12px' }}>
+                <div className="progress-bar-bg" style={{ marginBottom: '14px' }}>
                   <div 
                     className="progress-bar-fill" 
                     style={{ 
@@ -387,213 +395,123 @@ export const Workspace = () => {
                   />
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)' }} className="font-mono">
-                  <span>Latency: {result.processing_time_ms} ms</span>
-                  <span>Modalities: {result.modalities_used?.join(', ')}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }} className="font-mono">
+                  <span>Processing Latency: {result.processing_time_ms} ms</span>
+                  <span>Active Modalities: {result.modalities_used?.join(', ')}</span>
                 </div>
               </div>
 
-              {/* 2. TRANSPARENCY / EXPLANATION PANEL */}
-              <div style={{
-                background: 'rgba(10, 15, 28, 0.7)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                padding: '18px'
-              }}>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldCheck size={18} color="#00f2fe" /> Why did Truth Guard reach this result?
-                </h3>
-
-                {/* Active Components Checklist */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px', fontSize: '0.86rem' }}>
-                  <div style={{ color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <CheckCircle2 size={15} color="#10b981" />
-                    <span><strong>Text Analysis:</strong> Supervised NLP Classifier (TF-IDF + Logistic Regression)</span>
+              {/* 2. MODALITY BREAKDOWN GRID */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                
+                {/* TEXT SIGNAL CARD */}
+                <div style={{ background: 'rgba(12, 19, 36, 0.7)', border: '1px solid rgba(0, 242, 254, 0.2)', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', fontWeight: 700, marginBottom: '6px' }} className="font-mono">
+                    TEXT SIGNAL
                   </div>
-                  {result.visual_signal?.available && (
-                    <div style={{ color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CheckCircle2 size={15} color="#00f2fe" />
-                      <span><strong>Vision-Language:</strong> OpenAI CLIP ViT-B/32 Semantic Analysis</span>
-                    </div>
-                  )}
-                  {result.video_signal?.available && (
-                    <div style={{ color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CheckCircle2 size={15} color="#a855f7" />
-                      <span><strong>Video Analysis:</strong> Keyframe Sampling & Consistency Signal</span>
-                    </div>
-                  )}
-                  <div style={{ color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <CheckCircle2 size={15} color="#6366f1" />
-                    <span><strong>Fusion Engine:</strong> {getFusionMethodLabel(result.fusion_method)}</span>
+                  <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                    Fake Probability: <strong className="font-mono" style={{ color: '#fff' }}>{((result.text_signal?.fake_score ?? 0) * 100).toFixed(1)}%</strong>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+                    Model: TF-IDF + Logistic Regression
                   </div>
                 </div>
 
-                {/* Fusion Method & Alpha Box */}
+                {/* VISUAL SIGNAL CARD */}
+                <div style={{ background: 'rgba(12, 19, 36, 0.7)', border: '1px solid rgba(79, 172, 254, 0.2)', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ fontSize: '0.78rem', color: '#4facfe', fontWeight: 700, marginBottom: '6px' }} className="font-mono">
+                    VISUAL SIGNAL (CLIP)
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                    Available: <strong className="font-mono">{result.visual_signal?.available ? 'Yes' : 'No'}</strong>
+                  </div>
+                  {result.visual_signal?.available && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }} className="font-mono">
+                      Cosine Sim: {result.visual_signal.image_text_similarity?.toFixed(4)} | Align: {result.visual_signal.alignment_signal?.toFixed(4)}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* 3. FUSION GATE & EXPLANATION PANEL */}
+              <div style={{
+                background: 'rgba(10, 16, 30, 0.85)',
+                border: '1px solid var(--border-cyan)',
+                borderRadius: 'var(--radius-md)',
+                padding: '20px'
+              }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }} className="heading-serif">
+                  <ShieldCheck size={18} color="#00f2fe" /> Fusion Method & Verdict Explanation
+                </h3>
+
                 <div style={{
                   background: 'rgba(15, 23, 42, 0.6)',
                   border: '1px solid rgba(255, 255, 255, 0.06)',
                   borderRadius: 'var(--radius-sm)',
                   padding: '10px 14px',
-                  fontSize: '0.83rem',
+                  fontSize: '0.84rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   marginBottom: '14px'
                 }}>
                   <span style={{ color: 'var(--text-muted)' }}>Fusion Strategy:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--accent-cyan)' }}>
                     {getFusionMethodLabel(result.fusion_method)}
                     {result.fusion_gate_alpha !== null && (
-                      <span className="font-mono" style={{ marginLeft: '8px', opacity: 0.8 }}>
+                      <span className="font-mono" style={{ marginLeft: '8px', color: '#a855f7' }}>
                         (Gate α = {result.fusion_gate_alpha})
                       </span>
                     )}
                   </span>
                 </div>
 
-                {/* Explanation text */}
-                <p style={{ fontSize: '0.9rem', lineHeight: 1.5, color: '#cbd5e1' }}>
+                <p style={{ fontSize: '0.92rem', lineHeight: 1.6, color: '#cbd5e1' }}>
                   {result.explanation}
                 </p>
               </div>
 
-              {/* 3. CLIP EXPLANATION PANEL (WHEN IMAGE IS PRESENT) */}
+              {/* 4. MANDATORY CLIP DISCLAIMER NOTICE */}
               {result.visual_signal?.available && (
                 <div style={{
-                  background: 'rgba(0, 242, 254, 0.04)',
-                  border: '1px solid rgba(0, 242, 254, 0.25)',
+                  background: 'rgba(0, 242, 254, 0.05)',
+                  border: '1px solid rgba(0, 242, 254, 0.3)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '18px'
+                  padding: '16px',
+                  fontSize: '0.86rem',
+                  color: '#cbd5e1',
+                  lineHeight: 1.6,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
                 }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#00f2fe', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Sparkles size={18} /> Image–Text Semantic Alignment (CLIP)
-                  </h3>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                    <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', uppercase: 'true' }}>Cosine Similarity</div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: '2px' }} className="font-mono">
-                        {result.visual_signal.image_text_similarity?.toFixed(4) ?? 'N/A'}
-                      </div>
-                    </div>
-
-                    <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', uppercase: 'true' }}>Alignment Signal</div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00f2fe', marginTop: '2px' }} className="font-mono">
-                        {result.visual_signal.alignment_signal?.toFixed(4) ?? 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mandatory Explicit Disclaimer Note */}
-                  <div style={{
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(0, 242, 254, 0.2)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '12px',
-                    fontSize: '0.82rem',
-                    color: '#94a3b8',
-                    lineHeight: 1.5,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px'
-                  }}>
-                    <Info size={16} color="#00f2fe" style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span>
-                      <strong>Important Notice:</strong> Semantic alignment measures how well the uploaded image relates to the submitted text. It does not determine whether the claim itself is true or whether the image is authentic.
-                    </span>
-                  </div>
+                  <Info size={18} color="#00f2fe" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>
+                    <strong>Mandatory Research Transparency Notice:</strong> Semantic alignment measures how well the uploaded image relates to the submitted text. It does not determine whether the image is authentic, manipulated, or true.
+                  </span>
                 </div>
               )}
 
-              {/* 4. EXPANDABLE ANALYSIS DETAILS SECTION */}
-              <div style={{
-                background: 'rgba(15, 23, 42, 0.5)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setShowDetails(!showDetails)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 18px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-main)',
-                    fontSize: '0.88rem',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Cpu size={16} color="var(--accent-purple)" /> Analysis Details & Architecture Parameters
-                  </span>
-                  {showDetails ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                </button>
-
-                {showDetails && (
-                  <div style={{ padding: '0 18px 18px 18px', borderTop: '1px solid var(--border-color)', paddingTop: '14px', fontSize: '0.82rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }} className="font-mono">
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Text Model:</span>
-                        <div style={{ color: '#e2e8f0', marginTop: '2px' }}>TF-IDF + Logistic Regression</div>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Vision Model:</span>
-                        <div style={{ color: '#e2e8f0', marginTop: '2px' }}>OpenAI CLIP ViT-B/32</div>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Fusion Strategy:</span>
-                        <div style={{ color: '#e2e8f0', marginTop: '2px' }}>{getFusionMethodLabel(result.fusion_method)}</div>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Analysis ID:</span>
-                        <div style={{ color: '#e2e8f0', marginTop: '2px' }}>#{result.id}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 5. RESEARCH TRANSPARENCY NOTICE */}
-              <div style={{
-                background: 'rgba(99, 102, 241, 0.05)',
-                border: '1px solid rgba(99, 102, 241, 0.2)',
-                borderRadius: 'var(--radius-md)',
-                padding: '14px 16px',
-                fontSize: '0.83rem',
-                color: '#94a3b8',
-                lineHeight: 1.5
-              }}>
-                <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.76rem', letterSpacing: '0.05em' }}>
-                  Research Transparency
-                </div>
-                Truth Guard combines a supervised NLP classifier with vision-language semantic analysis. The NLP classifier was evaluated on a held-out dataset. Image-text semantic alignment is used as supporting multimodal evidence and does not independently establish factual truth.
-              </div>
-
-              {/* 6. FEEDBACK SECTION */}
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '18px' }}>
-                <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
+              {/* 5. FEEDBACK SECTION */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
                   Was this analysis useful?
                 </div>
 
                 {feedbackSent ? (
                   <div style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    padding: '10px 14px',
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    padding: '12px 16px',
                     borderRadius: 'var(--radius-sm)',
                     color: 'var(--status-real)',
-                    fontSize: '0.85rem',
+                    fontSize: '0.88rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                    <CheckCircle2 size={16} /> Thank you! Your feedback has been recorded for research evaluation.
+                    <CheckCircle2 size={18} /> Thank you! Your ground truth review has been saved in database.
                   </div>
                 ) : (
                   <div>
@@ -602,7 +520,7 @@ export const Workspace = () => {
                         type="button"
                         onClick={() => handleSendFeedback(5, 'REAL')} 
                         className="btn-secondary"
-                        style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                        style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                       >
                         <ThumbsUp size={15} color="#10b981" /> Correct
                       </button>
@@ -610,7 +528,7 @@ export const Workspace = () => {
                         type="button"
                         onClick={() => handleSendFeedback(1, 'FAKE')} 
                         className="btn-secondary"
-                        style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                        style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                       >
                         <ThumbsDown size={15} color="#ef4444" /> Incorrect
                       </button>
@@ -618,9 +536,9 @@ export const Workspace = () => {
                         type="button"
                         onClick={() => handleSendFeedback(3, 'UNCERTAIN')} 
                         className="btn-secondary"
-                        style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                        style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                       >
-                        <HelpCircle size={15} color="#f59e0b" /> Not Sure
+                        <HelpCircle size={15} color="#f59e0b" /> Uncertain
                       </button>
                     </div>
 
@@ -631,7 +549,7 @@ export const Workspace = () => {
                         placeholder="Optional feedback notes or ground truth observations..."
                         value={feedbackComments}
                         onChange={(e) => setFeedbackComments(e.target.value)}
-                        style={{ fontSize: '0.82rem', padding: '8px 12px' }}
+                        style={{ fontSize: '0.84rem', padding: '8px 14px' }}
                       />
                     </div>
                   </div>

@@ -1,51 +1,49 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { RenderWakeupOverlay } from './components/RenderWakeupOverlay';
+
+// Pages
 import { Home } from './pages/Home';
+import { About } from './pages/About';
+import { Features } from './pages/Features';
 import { Workspace } from './pages/Workspace';
 import { History } from './pages/History';
 import { Feedback } from './pages/Feedback';
+import { Contact } from './pages/Contact';
+import { Auth } from './pages/Auth';
 import { Admin } from './pages/Admin';
-import { About } from './pages/About';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState('home');
-
-  const renderPage = () => {
-    switch (activeTab) {
-      case 'home':
-        return <Home onNavigate={setActiveTab} />;
-      case 'workspace':
-        return <Workspace />;
-      case 'history':
-        return <History />;
-      case 'feedback':
-        return <Feedback />;
-      case 'admin':
-        return <Admin />;
-      case 'about':
-        return <About />;
-      case 'login':
-        return <Login onNavigate={setActiveTab} />;
-      case 'register':
-        return <Register onNavigate={setActiveTab} />;
-      default:
-        return <Home onNavigate={setActiveTab} />;
-    }
-  };
-
   return (
     <AuthProvider>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main style={{ flex: 1 }}>
-          {renderPage()}
-        </main>
-        <Footer />
-      </div>
+      <BrowserRouter>
+        <RenderWakeupOverlay>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
+            <Navbar />
+            <main style={{ flex: 1 }}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/features" element={<Features />} />
+                <Route path="/detection" element={<Workspace />} />
+                <Route path="/workspace" element={<Navigate to="/detection" replace />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/feedback" element={<Feedback />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/login" element={<Navigate to="/auth" replace />} />
+                <Route path="/register" element={<Navigate to="/auth?tab=register" replace />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </RenderWakeupOverlay>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

@@ -1,26 +1,37 @@
-import React from 'react';
-import { Shield, LayoutDashboard, History as HistoryIcon, MessageSquare, ShieldAlert, Info, LogIn, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Shield, LayoutDashboard, History as HistoryIcon, MessageSquare, ShieldAlert, Info, LogIn, LogOut, Sparkles, Mail, Menu, X } from 'lucide-react';
 import { HealthStatusBadge } from './HealthStatusBadge';
 import { useAuth } from '../context/AuthContext';
 
-export const Navbar = ({ activeTab, setActiveTab }) => {
+export const Navbar = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navItems = [
-    { id: 'home', label: 'Home', icon: Shield },
-    { id: 'workspace', label: 'Detection Workspace', icon: LayoutDashboard },
-    { id: 'history', label: 'Analysis History', icon: HistoryIcon },
-    { id: 'feedback', label: 'Feedback', icon: MessageSquare },
-    { id: 'admin', label: 'Admin Metrics', icon: ShieldAlert },
-    { id: 'about', label: 'About & Research', icon: Info },
+  const publicNavItems = [
+    { path: '/', label: 'Home' },
+    { path: '/about', label: 'About' },
+    { path: '/features', label: 'Features' },
+    { path: '/detection', label: 'Detection' },
+    { path: '/feedback', label: 'Feedback' },
+    { path: '/contact', label: 'Contact' },
   ];
+
+  const authNavItems = [
+    { path: '/history', label: 'History' },
+    { path: '/admin', label: 'Admin' },
+  ];
+
+  const navItems = user ? [...publicNavItems, ...authNavItems] : publicNavItems;
 
   return (
     <header style={{
-      borderBottom: '1px solid var(--border-color)',
-      background: 'rgba(7, 9, 14, 0.85)',
-      backdropFilter: 'blur(20px)',
-      sticky: 'top',
+      borderBottom: '1px solid rgba(0, 242, 254, 0.18)',
+      background: 'rgba(4, 7, 17, 0.88)',
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      position: 'sticky',
       top: 0,
       zIndex: 100,
       padding: '12px 28px'
@@ -35,7 +46,7 @@ export const Navbar = ({ activeTab, setActiveTab }) => {
       }}>
         {/* Logo & Brand */}
         <div 
-          onClick={() => setActiveTab('home')}
+          onClick={() => navigate('/')}
           style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
         >
           <div style={{
@@ -45,53 +56,46 @@ export const Navbar = ({ activeTab, setActiveTab }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 16px rgba(0, 242, 254, 0.4)'
+            boxShadow: '0 0 20px rgba(0, 242, 254, 0.45)'
           }}>
-            <Shield size={22} color="#000" strokeWidth={2.5} />
+            <Shield size={22} color="#040711" strokeWidth={2.8} />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }} className="heading-serif">
               TRUTH <span className="gradient-text">GUARD</span>
             </h1>
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              Multimodal AI Fake News Detection
+            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              Multimodal 3D AI Analysis
             </p>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  border: isActive ? '1px solid var(--border-glow)' : '1px solid transparent',
-                  background: isActive ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
-                  color: isActive ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  fontSize: '0.88rem',
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+        {/* Desktop Navigation */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="desktop-nav">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              style={({ isActive }) => ({
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: isActive ? '1px solid rgba(0, 242, 254, 0.35)' : '1px solid transparent',
+                background: isActive ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
+                color: isActive ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                fontSize: '0.9rem',
+                fontWeight: isActive ? 700 : 500,
+                textDecoration: 'none',
+                transition: 'all 0.2s ease'
+              })}
+            >
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
 
         {/* Right Section: Health Status & Auth */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <HealthStatusBadge />
           
           {user ? (
@@ -100,19 +104,67 @@ export const Navbar = ({ activeTab, setActiveTab }) => {
               className="btn-secondary"
               style={{ padding: '8px 14px', fontSize: '0.82rem' }}
             >
-              <LogOut size={14} /> Logout ({user.username})
+              <LogOut size={14} /> Sign Out ({user.username})
             </button>
           ) : (
-            <button 
-              onClick={() => setActiveTab('login')} 
-              className="btn-primary"
-              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-            >
-              <LogIn size={14} /> Sign In
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <NavLink 
+                to="/auth" 
+                className="btn-secondary"
+                style={{ padding: '8px 14px', fontSize: '0.82rem', textDecoration: 'none' }}
+              >
+                <LogIn size={14} /> Sign In
+              </NavLink>
+              <NavLink 
+                to="/auth?tab=register" 
+                className="btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.82rem', textDecoration: 'none' }}
+              >
+                Get Started
+              </NavLink>
+            </div>
           )}
+
+          {/* Mobile Menu Toggle */}
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="btn-secondary mobile-nav-toggle"
+            style={{ padding: '8px', display: 'none' }}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div style={{
+          padding: '16px 0 8px 0',
+          borderTop: '1px solid var(--border-color)',
+          marginTop: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
+              style={({ isActive }) => ({
+                padding: '10px 16px',
+                borderRadius: 'var(--radius-sm)',
+                color: isActive ? 'var(--accent-cyan)' : 'var(--text-main)',
+                background: isActive ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
+                textDecoration: 'none',
+                fontWeight: 600
+              })}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
     </header>
   );
 };
