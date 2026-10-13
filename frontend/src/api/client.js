@@ -50,6 +50,35 @@ export const submitFeedback = async (feedbackData) => {
   return response.data;
 };
 
+export const analyzeText = async (textData) => {
+  try {
+    const response = await api.post('/detection/text', textData);
+    return response.data;
+  } catch (error) {
+    console.error('Text detection request failed:', error);
+    throw error;
+  }
+};
+
+export const analyzeImage = async (formData) => {
+  try {
+    const response = await api.post('/detection/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Image detection request failed:', error);
+    throw error;
+  }
+};
+
+export const submitContact = async (contactData) => {
+  const response = await api.post('/contact', contactData);
+  return response.data;
+};
+
 export const getAdminMetrics = async () => {
   const response = await api.get('/admin/metrics');
   return response.data;

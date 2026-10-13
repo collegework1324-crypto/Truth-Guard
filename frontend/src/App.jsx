@@ -15,6 +15,7 @@ import { Feedback } from './pages/Feedback';
 import { Contact } from './pages/Contact';
 import { Auth } from './pages/Auth';
 import { Admin } from './pages/Admin';
+import { NotFound } from './pages/NotFound';
 
 export function App() {
   return (
@@ -37,7 +38,7 @@ export function App() {
                 <Route path="/login" element={<Navigate to="/auth" replace />} />
                 <Route path="/register" element={<Navigate to="/auth?tab=register" replace />} />
                 <Route path="/admin" element={<Admin />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
             <Footer />

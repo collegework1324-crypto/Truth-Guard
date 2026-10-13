@@ -1,0 +1,6 @@
+{
+  "name": "Truth Guard — Multimodal Fake News Detection System",
+  "description": "AI-Powered Multimodal Fake News Detection platform using NLP, Computer Vision, and Reliability-Gated Fusion.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

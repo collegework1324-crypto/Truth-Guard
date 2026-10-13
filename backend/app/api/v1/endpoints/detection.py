@@ -8,13 +8,106 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.engine.pipeline import pipeline_instance
 from app.models.analysis import DetectionAnalysis
-from app.schemas.detection import DetectionResponse
+from app.schemas.detection import DetectionResponse, DetectionRequest
 
 router = APIRouter()
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/jpg"}
 ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"}
 
+@router.post("/text", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
+async def analyze_text(
+    payload: DetectionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Dedicated Text-only Fake News Detection Endpoint.
+    Runs trained TF-IDF + Logistic Regression supervised NLP model.
+    """
+    headline = payload.headline.strip() if payload.headline else ""
+    body = payload.body.strip() if payload.body else None
+
+    if len(headline) < 3:
+        raise HTTPException(status_code=400, detail="Headline must be at least 3 characters long")
+
+    result = pipeline_instance.run(headline=headline, body=body)
+
+    db_analysis = DetectionAnalysis(
+        user_id=None,
+        headline=headline,
+        body=body,
+        image_path=None,
+        video_path=None,
+        modalities_used=result["modalities_used"],
+        prediction=result["prediction"],
+        confidence=result["confidence"],
+        text_signal=result["text_signal"],
+        visual_signal=None,
+        video_signal=None,
+        fusion_gate_alpha=result["fusion_gate_alpha"],
+        fusion_method=result.get("fusion_method", "reliability_gated_baseline"),
+        explanation=result["explanation"],
+        processing_time_ms=result["processing_time_ms"]
+    )
+    db.add(db_analysis)
+    db.commit()
+    db.refresh(db_analysis)
+    return db_analysis
+
+
+@router.post("/image", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
+async def analyze_image(
+    image: UploadFile = File(...),
+    headline: Optional[str] = Form("Media verification query"),
+    db: Session = Depends(get_db)
+):
+    """
+    Dedicated Image-claim alignment detection endpoint.
+    Extracts visual features and evaluates semantic alignment against textual claim.
+    """
+    if not image or not image.filename:
+        raise HTTPException(status_code=400, detail="An image file is required")
+    if image.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported image file type: {image.content_type}")
+
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    ext = os.path.splitext(image.filename)[1]
+    unique_name = f"img_{uuid.uuid4().hex}{ext}"
+    saved_image_path = os.path.join(settings.UPLOAD_DIR, unique_name)
+    content = await image.read()
+    with open(saved_image_path, "wb") as f:
+        f.write(content)
+
+    result = pipeline_instance.run(
+        headline=headline,
+        body=None,
+        image_path=saved_image_path
+    )
+
+    db_analysis = DetectionAnalysis(
+        user_id=None,
+        headline=headline,
+        body=None,
+        image_path=saved_image_path,
+        video_path=None,
+        modalities_used=result["modalities_used"],
+        prediction=result["prediction"],
+        confidence=result["confidence"],
+        text_signal=result["text_signal"],
+        visual_signal=result["visual_signal"],
+        video_signal=None,
+        fusion_gate_alpha=result["fusion_gate_alpha"],
+        fusion_method=result.get("fusion_method", "reliability_gated_baseline"),
+        explanation=result["explanation"],
+        processing_time_ms=result["processing_time_ms"]
+    )
+    db.add(db_analysis)
+    db.commit()
+    db.refresh(db_analysis)
+    return db_analysis
+
+
+@router.post("/multimodal", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
 @router.post("/analyze", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
 async def analyze_multimodal(
     headline: str = Form(...),
@@ -23,6 +116,11 @@ async def analyze_multimodal(
     video: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
+    """
+    Full multimodal analysis endpoint.
+    Accepts text claim and optional image/video media.
+    Fuses NLP, computer vision, and video signals with dynamic reliability gating.
+    """
     if not headline or len(headline.strip()) < 3:
         raise HTTPException(status_code=400, detail="Headline must be at least 3 characters long")
 
@@ -31,7 +129,6 @@ async def analyze_multimodal(
     saved_image_path = None
     saved_video_path = None
 
-    # Handle Image Upload Validation & Storage
     if image and image.filename:
         if image.content_type not in ALLOWED_IMAGE_TYPES:
             raise HTTPException(status_code=400, detail=f"Unsupported image file type: {image.content_type}")
@@ -42,7 +139,6 @@ async def analyze_multimodal(
         with open(saved_image_path, "wb") as f:
             f.write(content)
 
-    # Handle Video Upload Validation & Storage
     if video and video.filename:
         if video.content_type not in ALLOWED_VIDEO_TYPES:
             raise HTTPException(status_code=400, detail=f"Unsupported video file type: {video.content_type}")
@@ -53,7 +149,6 @@ async def analyze_multimodal(
         with open(saved_video_path, "wb") as f:
             f.write(content)
 
-    # Run Detection Engine Pipeline
     result = pipeline_instance.run(
         headline=headline,
         body=body,
@@ -61,7 +156,6 @@ async def analyze_multimodal(
         video_path=saved_video_path
     )
 
-    # Save to Database History
     db_analysis = DetectionAnalysis(
         user_id=None,
         headline=headline,

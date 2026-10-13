@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { 
   Send, Upload, Image as ImageIcon, Video, FileText, CheckCircle2, 
   XCircle, AlertCircle, Cpu, RefreshCw, ThumbsUp, ThumbsDown, HelpCircle, 
-  ChevronDown, ChevronUp, Info, ShieldCheck, Layers, Sparkles, X, Activity
+  ChevronDown, ChevronUp, Info, ShieldCheck, Layers, Sparkles, X, Activity,
+  Copy, Check, RotateCcw, Link2, SlidersHorizontal
 } from 'lucide-react';
-import { analyzeMultimodal, submitFeedback } from '../api/client';
+import { analyzeMultimodal, analyzeText, analyzeImage, submitFeedback } from '../api/client';
 import { TruthGuardCore3D } from '../components/3d/TruthGuardCore3D';
 
 export const Workspace = () => {
+  const [mode, setMode] = useState('multimodal'); // 'multimodal' | 'text' | 'image'
   const [headline, setHeadline] = useState('');
   const [body, setBody] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
@@ -18,6 +21,7 @@ export const Workspace = () => {
   const [processingStage, setProcessingStage] = useState('Preparing input');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // Expandable details toggle
   const [showDetails, setShowDetails] = useState(false);
@@ -25,6 +29,48 @@ export const Workspace = () => {
   // Feedback state
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackComments, setFeedbackComments] = useState('');
+
+  const sampleArticles = {
+    real: {
+      headline: "Daniel Radcliffe Rights Himself After Harry Potter Star Career",
+      body: "Daniel Radcliffe is an acclaimed actor who starred in the Harry Potter film series and has transitioned into diverse theatrical and cinema roles in London and New York, according to production spokespersons.",
+      url: "https://www.reuters.com/lifestyle/entertainment/radcliffe-theatre-review"
+    },
+    fake: {
+      headline: "BREAKING: Secret Alien Miracle Technology Discovered in Ocean Trench Proves Earth is Hollow",
+      body: "Shocking new footage leaked by anonymous whistleblowers proves government conspiracy to hide miracle ocean energy and you won't believe what they discovered inside!",
+      url: "https://banned-hidden-truth-news.net/ocean-leak"
+    }
+  };
+
+  const handleLoadSample = (type) => {
+    const s = sampleArticles[type];
+    setHeadline(s.headline);
+    setBody(s.body);
+    setSourceUrl(s.url);
+    setError(null);
+  };
+
+  const handleReset = () => {
+    setHeadline('');
+    setBody('');
+    setSourceUrl('');
+    setImageFile(null);
+    setImagePreview(null);
+    setVideoFile(null);
+    setResult(null);
+    setError(null);
+    setFeedbackSent(false);
+    setFeedbackComments('');
+  };
+
+  const handleCopyResult = () => {
+    if (!result) return;
+    const summary = `[Truth Guard Detection Result]\nClaim: "${result.headline}"\nVerdict: ${result.prediction} (${(result.confidence * 100).toFixed(1)}% Confidence)\nModalities: ${result.modalities_used?.join(', ')}\nExplanation: ${result.explanation}\nVerification System: Truth Guard NLP & Vision Framework`;
+    navigator.clipboard.writeText(summary);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -63,7 +109,7 @@ export const Workspace = () => {
   const handleAnalyze = async (e) => {
     e.preventDefault();
     if (!headline.trim()) {
-      setError('Please enter a news headline to analyze.');
+      setError('Please enter a news headline or claim to analyze.');
       return;
     }
 
@@ -75,14 +121,31 @@ export const Workspace = () => {
     setProcessingStage('Preparing input and parsing text claims...');
 
     try {
-      const formData = new FormData();
-      formData.append('headline', headline);
-      if (body.trim()) formData.append('body', body);
-      if (imageFile) formData.append('image', imageFile);
-      if (videoFile) formData.append('video', videoFile);
+      let responseData;
 
-      setProcessingStage('Extracting TF-IDF text features & CLIP image embeddings...');
-      const responseData = await analyzeMultimodal(formData);
+      if (mode === 'text') {
+        setProcessingStage('Extracting TF-IDF text features & evaluating Logistic Regression model...');
+        responseData = await analyzeText({
+          headline: headline.trim(),
+          body: body.trim() || undefined
+        });
+      } else if (mode === 'image' && imageFile) {
+        setProcessingStage('Extracting CLIP image embeddings & computing semantic alignment...');
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('headline', headline.trim());
+        responseData = await analyzeImage(formData);
+      } else {
+        // Multimodal
+        const formData = new FormData();
+        formData.append('headline', headline.trim());
+        if (body.trim()) formData.append('body', body.trim());
+        if (imageFile) formData.append('image', imageFile);
+        if (videoFile) formData.append('video', videoFile);
+
+        setProcessingStage('Extracting TF-IDF text features & CLIP image embeddings...');
+        responseData = await analyzeMultimodal(formData);
+      }
 
       setProcessingStage('Applying dynamic reliability gate & synthesizing verdict...');
       setTimeout(() => {
@@ -135,9 +198,9 @@ export const Workspace = () => {
     <div style={{ maxWidth: '1400px', margin: '40px auto', padding: '0 24px' }}>
       
       {/* HEADER SECTION */}
-      <div style={{ marginBottom: '36px', textAlign: 'center' }}>
+      <div style={{ marginBottom: '32px', textAlign: 'center' }}>
         <div className="badge-info font-mono" style={{ display: 'inline-block', marginBottom: '12px' }}>
-          3D DETECTION WORKSPACE
+          MULTIMODAL AI DETECTION WORKSPACE
         </div>
         <h1 style={{ fontSize: '3rem', fontWeight: 800 }} className="heading-serif">
           TRUTH GUARD <span className="gradient-text">DETECTION WORKSPACE</span>
@@ -145,15 +208,111 @@ export const Workspace = () => {
         <p style={{ color: 'var(--text-muted)', fontSize: '1.08rem', maxWidth: '680px', margin: '10px auto 0 auto' }}>
           Analyze news claims using supervised NLP text classification and OpenAI CLIP vision-language semantic alignment.
         </p>
+
+        {/* MODE SWITCHER TABS */}
+        <div style={{
+          display: 'inline-flex',
+          gap: '8px',
+          background: 'rgba(12, 19, 36, 0.8)',
+          border: '1px solid var(--border-cyan)',
+          padding: '6px',
+          borderRadius: '30px',
+          marginTop: '20px'
+        }}>
+          <button
+            type="button"
+            onClick={() => setMode('multimodal')}
+            style={{
+              background: mode === 'multimodal' ? 'var(--accent-cyan)' : 'transparent',
+              color: mode === 'multimodal' ? '#040711' : 'var(--text-muted)',
+              border: 'none',
+              padding: '8px 20px',
+              borderRadius: '20px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Multimodal (Full Pipeline)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('text')}
+            style={{
+              background: mode === 'text' ? 'var(--accent-cyan)' : 'transparent',
+              color: mode === 'text' ? '#040711' : 'var(--text-muted)',
+              border: 'none',
+              padding: '8px 20px',
+              borderRadius: '20px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Text-Only NLP Model
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('image')}
+            style={{
+              background: mode === 'image' ? 'var(--accent-cyan)' : 'transparent',
+              color: mode === 'image' ? '#040711' : 'var(--text-muted)',
+              border: 'none',
+              padding: '8px 20px',
+              borderRadius: '20px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Image-Claim Alignment
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '32px' }}>
         
         {/* INPUT FORM PANEL */}
         <div className="glass-panel" style={{ padding: '36px', alignSelf: 'start' }}>
-          <h2 style={{ fontSize: '1.35rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }} className="heading-serif">
-            <FileText size={22} color="#00f2fe" /> Modality Input Specification
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 style={{ fontSize: '1.35rem', display: 'flex', alignItems: 'center', gap: '10px' }} className="heading-serif">
+              <FileText size={22} color="#00f2fe" /> Input Specification
+            </h2>
+
+            {/* Quick Sample Action Buttons */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => handleLoadSample('real')}
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                title="Populate authentic journalism sample from dataset"
+              >
+                Sample Real
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLoadSample('fake')}
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                title="Populate sensationalist clickbait sample"
+              >
+                Sample Fake
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="btn-secondary"
+                style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                title="Clear all fields"
+              >
+                <RotateCcw size={14} />
+              </button>
+            </div>
+          </div>
 
           <form onSubmit={handleAnalyze}>
             <div className="form-group">
@@ -161,7 +320,7 @@ export const Workspace = () => {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Paste news headline or textual claim..."
+                placeholder="Paste news headline or claim to analyze..."
                 value={headline}
                 onChange={(e) => setHeadline(e.target.value)}
                 required
@@ -169,105 +328,123 @@ export const Workspace = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Article Description / Body (Optional)</label>
+              <label className="form-label">Article Description / Context (Optional)</label>
               <textarea
                 className="form-textarea"
                 placeholder="Paste supporting article text or full news context..."
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
+                rows={4}
               />
             </div>
 
-            {/* Media Upload Box Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              
-              {/* Image Upload Box */}
-              <div style={{
-                border: imageFile ? '1px solid var(--accent-cyan)' : '1px dashed var(--border-cyan)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px',
-                textAlign: 'center',
-                background: imageFile ? 'rgba(0, 242, 254, 0.06)' : 'rgba(12, 19, 36, 0.5)',
-                position: 'relative'
-              }}>
-                {!imagePreview ? (
-                  <label style={{ cursor: 'pointer', display: 'block' }}>
-                    <ImageIcon size={28} color="#00f2fe" style={{ margin: '0 auto 8px auto' }} />
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>Image Modality</div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>JPG, PNG, WebP</div>
-                    <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-                  </label>
-                ) : (
-                  <div>
-                    <div style={{ position: 'relative', width: '100%', height: '120px', marginBottom: '8px', overflow: 'hidden', borderRadius: 'var(--radius-sm)' }}>
-                      <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        style={{
-                          position: 'absolute',
-                          top: '6px',
-                          right: '6px',
-                          background: 'rgba(0, 0, 0, 0.8)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '26px',
-                          height: '26px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--accent-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="font-mono">
-                      {imageFile.name}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Video Upload Box */}
-              <div style={{
-                border: videoFile ? '1px solid #a855f7' : '1px dashed var(--border-cyan)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px',
-                textAlign: 'center',
-                background: videoFile ? 'rgba(168, 85, 247, 0.06)' : 'rgba(12, 19, 36, 0.5)',
-                position: 'relative'
-              }}>
-                {!videoFile ? (
-                  <label style={{ cursor: 'pointer', display: 'block' }}>
-                    <Video size={28} color="#a855f7" style={{ margin: '0 auto 8px auto' }} />
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>Video Modality</div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>MP4, WebM</div>
-                    <input type="file" accept="video/*" onChange={handleVideoChange} style={{ display: 'none' }} />
-                  </label>
-                ) : (
-                  <div>
-                    <div style={{ padding: '24px 8px', background: 'rgba(168, 85, 247, 0.12)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }}>
-                      <Video size={32} color="#c084fc" style={{ margin: '0 auto' }} />
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                      <span style={{ fontSize: '0.76rem', color: '#c084fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="font-mono">
-                        {videoFile.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleRemoveVideo}
-                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
+            <div className="form-group">
+              <label className="form-label">
+                <Link2 size={14} color="#64748b" /> Source URL / Reference Link (Optional)
+              </label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://news-outlet.org/article-permalink..."
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+              />
             </div>
+
+            {/* Media Upload Box Grid (only shown if mode is multimodal or image) */}
+            {mode !== 'text' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                
+                {/* Image Upload Box */}
+                <div style={{
+                  border: imageFile ? '1px solid var(--accent-cyan)' : '1px dashed var(--border-cyan)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  textAlign: 'center',
+                  background: imageFile ? 'rgba(0, 242, 254, 0.06)' : 'rgba(12, 19, 36, 0.5)',
+                  position: 'relative'
+                }}>
+                  {!imagePreview ? (
+                    <label style={{ cursor: 'pointer', display: 'block' }}>
+                      <ImageIcon size={28} color="#00f2fe" style={{ margin: '0 auto 8px auto' }} />
+                      <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>Image Modality</div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>JPG, PNG, WebP</div>
+                      <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                    </label>
+                  ) : (
+                    <div>
+                      <div style={{ position: 'relative', width: '100%', height: '120px', marginBottom: '8px', overflow: 'hidden', borderRadius: 'var(--radius-sm)' }}>
+                        <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '26px',
+                            height: '26px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: 'var(--accent-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="font-mono">
+                        {imageFile.name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Upload Box (multimodal only) */}
+                <div style={{
+                  border: videoFile ? '1px solid #a855f7' : '1px dashed var(--border-cyan)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  textAlign: 'center',
+                  background: videoFile ? 'rgba(168, 85, 247, 0.06)' : 'rgba(12, 19, 36, 0.5)',
+                  position: 'relative',
+                  opacity: mode === 'image' ? 0.4 : 1.0,
+                  pointerEvents: mode === 'image' ? 'none' : 'auto'
+                }}>
+                  {!videoFile ? (
+                    <label style={{ cursor: 'pointer', display: 'block' }}>
+                      <Video size={28} color="#a855f7" style={{ margin: '0 auto 8px auto' }} />
+                      <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>Video Modality</div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>MP4, WebM</div>
+                      <input type="file" accept="video/*" onChange={handleVideoChange} style={{ display: 'none' }} />
+                    </label>
+                  ) : (
+                    <div>
+                      <div style={{ padding: '24px 8px', background: 'rgba(168, 85, 247, 0.12)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }}>
+                        <Video size={32} color="#c084fc" style={{ margin: '0 auto' }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                        <span style={{ fontSize: '0.76rem', color: '#c084fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="font-mono">
+                          {videoFile.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveVideo}
+                          style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
 
             {error && (
               <div style={{
@@ -291,12 +468,12 @@ export const Workspace = () => {
               {loading ? (
                 <>
                   <RefreshCw className="animate-spin" size={18} />
-                  <span>ANALYZE WITH TRUTH GUARD...</span>
+                  <span>ANALYZING CLAIM...</span>
                 </>
               ) : (
                 <>
                   <Send size={18} />
-                  <span>ANALYZE WITH TRUTH GUARD</span>
+                  <span>RUN TRUTH GUARD DETECTION</span>
                 </>
               )}
             </button>
@@ -305,9 +482,30 @@ export const Workspace = () => {
 
         {/* RESULTS / DETECTING OUTPUT PANEL */}
         <div className="glass-panel" style={{ padding: '36px' }}>
-          <h2 style={{ fontSize: '1.35rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }} className="heading-serif">
-            <Cpu size={22} color="#a855f7" /> TRUTH GUARD RESULT
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.35rem', display: 'flex', alignItems: 'center', gap: '10px' }} className="heading-serif">
+              <Cpu size={22} color="#a855f7" /> Detection Verdict & Signals
+            </h2>
+
+            {result && (
+              <button
+                type="button"
+                onClick={handleCopyResult}
+                className="btn-secondary"
+                style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+              >
+                {copied ? (
+                  <>
+                    <Check size={14} color="#10b981" /> Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} /> Copy Verdict
+                  </>
+                )}
+              </button>
+            )}
+          </div>
 
           {!result && !loading && (
             <div style={{
@@ -323,9 +521,9 @@ export const Workspace = () => {
               padding: '24px'
             }}>
               <Layers size={52} strokeWidth={1.2} style={{ marginBottom: '16px', opacity: 0.35, color: '#00f2fe' }} />
-              <p style={{ fontWeight: 700, fontSize: '1.1rem' }} className="heading-serif">No Analysis Executed Yet</p>
+              <p style={{ fontWeight: 700, fontSize: '1.1rem' }} className="heading-serif">Ready for Analysis</p>
               <p style={{ fontSize: '0.88rem', color: 'var(--text-dim)', maxWidth: '340px', marginTop: '8px', lineHeight: 1.6 }}>
-                Submit news claim headline and optional media on the left to invoke the NLP & CLIP multimodal detection pipeline.
+                Submit a news headline or claim on the left to run our supervised NLP text model and vision-language semantic alignment.
               </p>
             </div>
           )}
@@ -347,7 +545,7 @@ export const Workspace = () => {
                   <Activity size={16} className="animate-spin" /> {processingStage}
                 </div>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '8px' }} className="font-mono">
-                  Text Signal → TRUTH CORE ← Visual Signal
+                  Text Signal → Reliability Gate ← Visual Signal
                 </p>
               </div>
             </div>
@@ -366,11 +564,11 @@ export const Workspace = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                   <div>
                     <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }} className="font-mono">
-                      VERDICT OUTPUT
+                      CLASSIFICATION VERDICT
                     </div>
                     <div className={result.prediction === 'REAL' ? 'badge-real' : 'badge-fake'} style={{ fontSize: '1.4rem', padding: '8px 22px', marginTop: '6px' }}>
                       {result.prediction === 'REAL' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
-                      <span>{result.prediction}</span>
+                      <span>{result.prediction === 'REAL' ? 'Likely Real' : 'Likely Fake'}</span>
                     </div>
                   </div>
 
@@ -396,8 +594,8 @@ export const Workspace = () => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }} className="font-mono">
-                  <span>Processing Latency: {result.processing_time_ms} ms</span>
-                  <span>Active Modalities: {result.modalities_used?.join(', ')}</span>
+                  <span>Latency: {result.processing_time_ms} ms</span>
+                  <span>Modalities: {result.modalities_used?.join(', ')}</span>
                 </div>
               </div>
 
@@ -407,23 +605,23 @@ export const Workspace = () => {
                 {/* TEXT SIGNAL CARD */}
                 <div style={{ background: 'rgba(12, 19, 36, 0.7)', border: '1px solid rgba(0, 242, 254, 0.2)', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
                   <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', fontWeight: 700, marginBottom: '6px' }} className="font-mono">
-                    TEXT SIGNAL
+                    TEXT NLP SIGNAL
                   </div>
                   <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
                     Fake Probability: <strong className="font-mono" style={{ color: '#fff' }}>{((result.text_signal?.fake_score ?? 0) * 100).toFixed(1)}%</strong>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                    Model: TF-IDF + Logistic Regression
+                    TF-IDF + Logistic Regression
                   </div>
                 </div>
 
                 {/* VISUAL SIGNAL CARD */}
                 <div style={{ background: 'rgba(12, 19, 36, 0.7)', border: '1px solid rgba(79, 172, 254, 0.2)', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
                   <div style={{ fontSize: '0.78rem', color: '#4facfe', fontWeight: 700, marginBottom: '6px' }} className="font-mono">
-                    VISUAL SIGNAL (CLIP)
+                    VISUAL ALIGNMENT (CLIP)
                   </div>
                   <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
-                    Available: <strong className="font-mono">{result.visual_signal?.available ? 'Yes' : 'No'}</strong>
+                    Available: <strong className="font-mono">{result.visual_signal?.available ? 'Yes' : 'Not attached'}</strong>
                   </div>
                   {result.visual_signal?.available && (
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }} className="font-mono">
@@ -442,7 +640,7 @@ export const Workspace = () => {
                 padding: '20px'
               }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }} className="heading-serif">
-                  <ShieldCheck size={18} color="#00f2fe" /> Fusion Method & Verdict Explanation
+                  <ShieldCheck size={18} color="#00f2fe" /> Synthesis & Transparent Explanation
                 </h3>
 
                 <div style={{
@@ -472,31 +670,29 @@ export const Workspace = () => {
                 </p>
               </div>
 
-              {/* 4. MANDATORY CLIP DISCLAIMER NOTICE */}
-              {result.visual_signal?.available && (
-                <div style={{
-                  background: 'rgba(0, 242, 254, 0.05)',
-                  border: '1px solid rgba(0, 242, 254, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '16px',
-                  fontSize: '0.86rem',
-                  color: '#cbd5e1',
-                  lineHeight: 1.6,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px'
-                }}>
-                  <Info size={18} color="#00f2fe" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span>
-                    <strong>Mandatory Research Transparency Notice:</strong> Semantic alignment measures how well the uploaded image relates to the submitted text. It does not determine whether the image is authentic, manipulated, or true.
-                  </span>
-                </div>
-              )}
+              {/* 4. MANDATORY RESEARCH TRANSPARENCY NOTICE */}
+              <div style={{
+                background: 'rgba(0, 242, 254, 0.05)',
+                border: '1px solid rgba(0, 242, 254, 0.3)',
+                borderRadius: 'var(--radius-md)',
+                padding: '16px',
+                fontSize: '0.86rem',
+                color: '#cbd5e1',
+                lineHeight: 1.6,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <Info size={18} color="#00f2fe" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  <strong>Scientific Methodology Note:</strong> Text classification detects learned statistical patterns from the Fake or Real News Dataset. Semantic visual alignment measures claim-to-image relevance, not visual manipulation or deepfake fabrication.
+                </span>
+              </div>
 
               {/* 5. FEEDBACK SECTION */}
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Was this analysis useful?
+                  Was this analysis accurate according to your verification?
                 </div>
 
                 {feedbackSent ? (
@@ -511,7 +707,7 @@ export const Workspace = () => {
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                    <CheckCircle2 size={18} /> Thank you! Your ground truth review has been saved in database.
+                    <CheckCircle2 size={18} /> Thank you! Your feedback has been stored in the database.
                   </div>
                 ) : (
                   <div>
@@ -522,7 +718,7 @@ export const Workspace = () => {
                         className="btn-secondary"
                         style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                       >
-                        <ThumbsUp size={15} color="#10b981" /> Correct
+                        <ThumbsUp size={15} color="#10b981" /> Correct (Real)
                       </button>
                       <button 
                         type="button"
@@ -530,7 +726,7 @@ export const Workspace = () => {
                         className="btn-secondary"
                         style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                       >
-                        <ThumbsDown size={15} color="#ef4444" /> Incorrect
+                        <ThumbsDown size={15} color="#ef4444" /> Correct (Fake)
                       </button>
                       <button 
                         type="button"
@@ -538,7 +734,7 @@ export const Workspace = () => {
                         className="btn-secondary"
                         style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                       >
-                        <HelpCircle size={15} color="#f59e0b" /> Uncertain
+                        <HelpCircle size={15} color="#f59e0b" /> Inconclusive
                       </button>
                     </div>
 

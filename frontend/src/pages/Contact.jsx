@@ -1,16 +1,38 @@
 import React, { useState } from 'react';
-import { Mail, Send, CheckCircle2, Shield, Globe, MessageSquare, BookOpen } from 'lucide-react';
+import { Mail, Send, CheckCircle2, Shield, Globe, MessageSquare, BookOpen, AlertCircle, RefreshCw } from 'lucide-react';
+import { submitContact } from '../api/client';
 
 export const Contact = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSent(true);
+    setError(null);
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await submitContact({
+        name: name.trim(),
+        email: email.trim(),
+        subject: subject.trim() || undefined,
+        message: message.trim()
+      });
+      setSent(true);
+    } catch (err) {
+      console.error('Contact submission error:', err);
+      setError(err.response?.data?.detail || 'Failed to submit inquiry. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -148,8 +170,34 @@ export const Contact = () => {
                 />
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%' }}>
-                <Send size={16} /> Send Inquiry
+              {error && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  padding: '12px 16px',
+                  borderRadius: 'var(--radius-sm)',
+                  color: '#f87171',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '0.9rem'
+                }}>
+                  <AlertCircle size={18} />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%' }}>
+                {loading ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={16} /> Submitting Inquiry...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} /> Send Inquiry
+                  </>
+                )}
               </button>
             </form>
           )}
